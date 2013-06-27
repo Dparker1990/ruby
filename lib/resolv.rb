@@ -211,6 +211,13 @@ class Resolv
       }
       self
     end
+    
+    ##
+    # Returns a hash of hostname => ip address
+    
+    def names_to_addrs
+      @name2addr
+    end
 
     ##
     # Gets the IP address of +name+ from the hosts file.

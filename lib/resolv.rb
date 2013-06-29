@@ -186,30 +186,43 @@ class Resolv
         unless @initialized
           @name2addr = {}
           @addr2name = {}
-          open(@filename) {|f|
-            f.each {|line|
-              line.sub!(/#.*/, '')
-              addr, hostname, *aliases = line.split(/\s+/)
-              next unless addr
-              addr.untaint
-              hostname.untaint
-              @addr2name[addr] = [] unless @addr2name.include? addr
-              @addr2name[addr] << hostname
-              @addr2name[addr] += aliases
-              @name2addr[hostname] = [] unless @name2addr.include? hostname
-              @name2addr[hostname] << addr
-              aliases.each {|n|
-                n.untaint
-                @name2addr[n] = [] unless @name2addr.include? n
-                @name2addr[n] << addr
-              }
-            }
-          }
+          host_lines = read(@filename).scan(/^(?!#).*$/)
+          host_lines.each do |f|
+            addr, hostname, *aliases = line.split(/\s+/)
+            next unless addr
+            addr.untaint
+            hostname.untaint
+            @addr2name[addr] ||= []
+            @addr2name[addr] += [hostname, aliases].flatten
+            @name2addr[hostname] ||= []
+            @name2addr[hostname] << addr
+            aliases.each do |n|
+              n.untaint
+              @name2addr[n] ||= []
+              @name2addr[n] << addr
+            end
+          end
           @name2addr.each {|name, arr| arr.reverse!}
           @initialized = true
         end
       }
       self
+    end
+
+    ##
+    # Returns hash of hostnames to IP addresses
+
+    def names_to_addrs
+      lazy_initialize
+      @name2addr
+    end
+
+    ##
+    # Returns hash of IP addresses to names
+
+    def addrs_to_names
+      lazy_initialize
+      @addr2name
     end
 
     ##
@@ -233,9 +246,8 @@ class Resolv
     # Iterates over all IP addresses for +name+ retrieved from the hosts file.
 
     def each_address(name, &proc)
-      lazy_initialize
-      if @name2addr.include?(name)
-        @name2addr[name].each(&proc)
+      if names_to_addrs.include?(name)
+        names_to_addrs[name].each(&proc)
       end
     end
 
@@ -260,9 +272,8 @@ class Resolv
     # Iterates over all hostnames for +address+ retrieved from the hosts file.
 
     def each_name(address, &proc)
-      lazy_initialize
-      if @addr2name.include?(address)
-        @addr2name[address].each(&proc)
+      if addrs_to_names.include?(address)
+        addrs_to_names[address].each(&proc)
       end
     end
   end
